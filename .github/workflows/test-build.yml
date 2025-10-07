@@ -1,0 +1,47 @@
+name: Test Build
+
+# Run tests on pull requests
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Test build
+        run: |
+          echo "Testing build process..."
+          python3 build.py
+          
+          # Verify index.html was created
+          if [ ! -f "index.html" ]; then
+            echo "Error: index.html was not generated"
+            exit 1
+          fi
+          
+          # Check file size
+          FILE_SIZE=$(wc -c < index.html)
+          if [ $FILE_SIZE -lt 1000 ]; then
+            echo "Error: index.html seems too small ($FILE_SIZE bytes)"
+            exit 1
+          fi
+          
+          # Verify HTML structure
+          if ! grep -q "Current Time & Date" index.html; then
+            echo "Error: Expected content not found in index.html"
+            exit 1
+          fi
+          
+          echo "✓ Build test passed!"
+          echo "Generated file size: $FILE_SIZE bytes"

@@ -1,58 +1,59 @@
 name: Deploy to S3
 
+# Trigger deployment on push to main branch
 on:
   push:
-    branches: [ main ]
-  workflow_dispatch:  # Allows manual trigger from GitHub UI
+    branches:
+      - main
+  workflow_dispatch:  # Allow manual trigger from GitHub UI
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
     
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      # Step 1: Checkout the repository
+      - name: Checkout code
+        uses: actions/checkout@v4
       
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.x'
-        
-    - name: Build website
-      run: |
-        echo "Building autobuild static website..."
-        python3 build.py
-        echo "✓ Build complete"
-        
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: us-east-1
-        
-    - name: Deploy to S3
-      run: |
-        echo "Deploying to S3..."
-        aws s3 cp index.html s3://autobuild-time-display-static/index.html \
-          --content-type "text/html" \
-          --cache-control "max-age=300" \
-          --metadata-directive REPLACE
-        echo "✓ Deployment complete"
-        
-    - name: Invalidate CloudFront (if applicable)
-      run: |
-        echo "Note: Add CloudFront invalidation here if you set up CloudFront"
-        # aws cloudfront create-invalidation --distribution-id YOUR_DIST_ID --paths "/*"
-        
-    - name: Deployment summary
-      run: |
-        echo "========================================="
-        echo "  Deployment Successful!"
-        echo "========================================="
-        echo ""
-        echo "Website URL:"
-        echo "http://autobuild-time-display-static.s3-website-us-east-1.amazonaws.com"
-        echo ""
-        echo "Deployed at: $(date)"
-        echo ""
+      # Step 2: Set up Python
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      # Step 3: Build the website
+      - name: Build website
+        run: |
+          echo "Building autobuild website..."
+          python3 build.py
+          echo "Build complete!"
+          ls -lh index.html
+      
+      # Step 4: Configure AWS credentials
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      
+      # Step 5: Deploy to S3
+      - name: Deploy to S3
+        run: |
+          echo "Deploying to S3..."
+          aws s3 cp index.html s3://autobuild-time-display-static/index.html \
+            --content-type text/html \
+            --cache-control "max-age=300" \
+            --metadata-directive REPLACE
+          echo "✓ Deployment successful!"
+      
+      # Step 6: Invalidate CloudFront cache (optional, for future use)
+      - name: Summary
+        run: |
+          echo "========================================"
+          echo "  Deployment Complete!"
+          echo "========================================"
+          echo "Website URL: http://autobuild-time-display-static.s3-website-us-east-1.amazonaws.com"
+          echo "Deployed at: $(date)"
+          echo "Commit: ${{ github.sha }}"
