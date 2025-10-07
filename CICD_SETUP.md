@@ -2,129 +2,49 @@
 
 This guide will help you configure automatic deployment to S3 using GitHub Actions.
 
-## 🚀 What Gets Automated
+## Overview
 
-Every time you push to the `main` branch, GitHub Actions will:
-1. ✅ Check out your code
-2. ✅ Run `build.py` to generate the HTML
-3. ✅ Deploy to S3 automatically
-4. ✅ Update your live website
+Once configured, every push to the `main` branch will automatically:
+1. Build the website using Python
+2. Deploy to S3
+3. Make your changes live in seconds!
 
-**No manual deployment needed!**
+## Prerequisites
+
+- AWS account with S3 access
+- GitHub repository access
+- AWS Access Key ID and Secret Access Key
 
 ---
 
-## 📋 Setup Instructions
+## Step 1: Create AWS IAM User for GitHub Actions
 
-### Step 1: Get Your AWS Credentials
+### Option A: Use Existing Credentials (Quick Start)
 
-You need to create AWS credentials that GitHub can use. You have two options:
+If you're already using AWS CLI, you can use your existing credentials. Skip to Step 2.
 
-#### Option A: Use Your Existing Credentials (Quick)
-
-If you're already using AWS CLI, your credentials are in `~/.aws/credentials`:
-
-```bash
-cat ~/.aws/credentials
-```
-
-Look for:
-```
-[default]
-aws_access_key_id = YOUR_ACCESS_KEY_ID
-aws_secret_access_key = YOUR_SECRET_ACCESS_KEY
-```
-
-#### Option B: Create New IAM User (Recommended for Production)
+### Option B: Create Dedicated IAM User (Recommended for Production)
 
 1. Go to [AWS IAM Console](https://console.aws.amazon.com/iam/)
-2. Click "Users" → "Create user"
-3. Username: `github-actions-autobuild`
-4. Click "Next"
-5. Select "Attach policies directly"
-6. Search and attach: `AmazonS3FullAccess` (or create a custom policy for just your bucket)
-7. Click "Next" → "Create user"
-8. Click on the new user
-9. Go to "Security credentials" tab
-10. Click "Create access key"
-11. Choose "Application running outside AWS"
-12. Click "Next" → "Create access key"
-13. **SAVE THESE CREDENTIALS** (you'll only see them once!)
+2. Click **Users** → **Create user**
+3. User name: `github-actions-autobuild`
+4. Click **Next**
+5. Select **Attach policies directly**
+6. Search and select: `AmazonS3FullAccess` (or create custom policy below)
+7. Click **Next** → **Create user**
+8. Click on the user name
+9. Go to **Security credentials** tab
+10. Click **Create access key**
+11. Select **Application running outside AWS**
+12. Click **Next** → **Create access key**
+13. **IMPORTANT:** Copy both:
+    - Access key ID
+    - Secret access key
+    - ⚠️ You won't be able to see the secret again!
 
----
+### Custom IAM Policy (More Secure)
 
-### Step 2: Add Secrets to GitHub
-
-1. Go to your repository: https://github.com/sorted78/autobuild
-
-2. Click **Settings** (top menu)
-
-3. In the left sidebar, click **Secrets and variables** → **Actions**
-
-4. Click **New repository secret**
-
-5. Add the first secret:
-   - **Name:** `AWS_ACCESS_KEY_ID`
-   - **Value:** Your AWS access key ID (starts with `AKIA...`)
-   - Click **Add secret**
-
-6. Click **New repository secret** again
-
-7. Add the second secret:
-   - **Name:** `AWS_SECRET_ACCESS_KEY`
-   - **Value:** Your AWS secret access key
-   - Click **Add secret**
-
----
-
-### Step 3: Test the Workflow
-
-#### Option A: Make a Small Change
-
-Let's test it by updating the website:
-
-```bash
-cd ~/Desktop
-git clone https://github.com/sorted78/autobuild.git
-cd autobuild
-
-# Edit build.py - change the title or colors
-nano build.py  # or use your favorite editor
-
-# Commit and push
-git add build.py
-git commit -m "Test CI/CD: Update website styling"
-git push origin main
-```
-
-#### Option B: Manual Trigger
-
-1. Go to https://github.com/sorted78/autobuild/actions
-2. Click on "Deploy to S3" workflow
-3. Click "Run workflow"
-4. Click the green "Run workflow" button
-
----
-
-### Step 4: Watch It Deploy!
-
-1. Go to https://github.com/sorted78/autobuild/actions
-
-2. You'll see your workflow running with a yellow dot 🟡
-
-3. Click on it to see the live logs
-
-4. When it turns green ✅, your site is deployed!
-
-5. Visit http://autobuild-time-display-static.s3-website-us-east-1.amazonaws.com to see your changes
-
----
-
-## 🔒 Security Best Practices
-
-### Custom IAM Policy (Most Secure)
-
-Instead of `AmazonS3FullAccess`, create a custom policy that only allows access to your bucket:
+For better security, create a custom policy that only allows access to your specific bucket:
 
 ```json
 {
@@ -147,152 +67,384 @@ Instead of `AmazonS3FullAccess`, create a custom policy that only allows access 
 }
 ```
 
-To apply this:
-1. IAM Console → Policies → Create policy
-2. Click JSON tab
-3. Paste the above policy
-4. Name it: `GitHubActionsAutobuildPolicy`
-5. Create policy
-6. Attach it to your IAM user
-
 ---
 
-## 📊 Monitoring Deployments
+## Step 2: Add Secrets to GitHub Repository
 
-### View Deployment History
+### Via GitHub Web Interface
+
+1. Go to your repository: https://github.com/sorted78/autobuild
+2. Click **Settings** (top menu)
+3. In the left sidebar, click **Secrets and variables** → **Actions**
+4. Click **New repository secret**
+5. Add the first secret:
+   - Name: `AWS_ACCESS_KEY_ID`
+   - Secret: *paste your AWS Access Key ID*
+   - Click **Add secret**
+6. Click **New repository secret** again
+7. Add the second secret:
+   - Name: `AWS_SECRET_ACCESS_KEY`
+   - Secret: *paste your AWS Secret Access Key*
+   - Click **Add secret**
+
+### Via GitHub CLI (Alternative)
+
+If you have GitHub CLI installed:
+
 ```bash
-# List all workflow runs
-gh run list --repo sorted78/autobuild
+# Set AWS Access Key ID
+gh secret set AWS_ACCESS_KEY_ID --repo sorted78/autobuild
+# Paste your access key when prompted
 
-# View details of the last run
-gh run view --repo sorted78/autobuild
+# Set AWS Secret Access Key
+gh secret set AWS_SECRET_ACCESS_KEY --repo sorted78/autobuild
+# Paste your secret key when prompted
 ```
 
-### Check Logs
+---
+
+## Step 3: Test the CI/CD Pipeline
+
+### Automatic Test (Recommended)
+
+Just push any change to the `main` branch:
+
 ```bash
-# View logs of the last run
-gh run view --log --repo sorted78/autobuild
+cd ~/Desktop/autobuild
+
+# Make a small change
+echo "# CI/CD Test" >> README.md
+
+# Commit and push
+git add .
+git commit -m "Test CI/CD pipeline"
+git push origin main
 ```
 
-Or visit: https://github.com/sorted78/autobuild/actions
+### Manual Trigger
+
+1. Go to https://github.com/sorted78/autobuild/actions
+2. Click on **Deploy to S3** workflow
+3. Click **Run workflow** → **Run workflow**
+4. Watch it deploy!
 
 ---
 
-## 🛠️ Troubleshooting
+## Step 4: Monitor Deployment
 
-### Workflow Fails with "403 Forbidden"
-- **Cause:** AWS credentials are incorrect or don't have S3 permissions
-- **Fix:** Check your GitHub secrets and IAM permissions
+### View Workflow Runs
 
-### Workflow Fails with "Bucket not found"
-- **Cause:** Bucket name mismatch
-- **Fix:** Ensure the bucket name in the workflow matches your actual bucket
+1. Go to https://github.com/sorted78/autobuild/actions
+2. You'll see all workflow runs
+3. Click on any run to see detailed logs
+4. Green ✓ = Success, Red ✗ = Failed
 
-### Secrets Not Working
-- **Cause:** Typo in secret names
-- **Fix:** Secret names must be EXACTLY:
-  - `AWS_ACCESS_KEY_ID`
-  - `AWS_SECRET_ACCESS_KEY`
+### Check Deployment Status
 
-### Re-add Secrets
-If you need to update credentials:
-1. Go to Settings → Secrets and variables → Actions
-2. Click on the secret name
-3. Click "Update secret"
-4. Enter new value
+Each workflow run shows:
+- Build output
+- Deployment progress
+- Final website URL
+- Commit information
 
 ---
 
-## 🎯 Workflow Features
+## Workflow Details
 
-### Automatic Triggers
-- ✅ Runs on every push to `main`
-- ✅ Can be manually triggered from GitHub UI
+### Deploy Workflow (`.github/workflows/deploy.yml`)
 
-### What It Does
-1. Checks out your code
-2. Sets up Python
-3. Runs `build.py` to generate HTML
-4. Configures AWS credentials
-5. Uploads to S3 with proper headers
-6. Shows deployment summary
+**Triggers:**
+- Push to `main` branch
+- Manual trigger from GitHub UI
 
-### Deployment Time
-- **Typical duration:** 30-60 seconds
-- **Cost:** FREE (GitHub Actions has generous free tier)
+**Steps:**
+1. Checkout code
+2. Set up Python 3.11
+3. Run `build.py` to generate `index.html`
+4. Configure AWS credentials from secrets
+5. Upload to S3 with proper content-type
+6. Display success message
+
+**Duration:** ~30-60 seconds
+
+### Test Workflow (`.github/workflows/test-build.yml`)
+
+**Triggers:**
+- Pull requests to `main`
+
+**Purpose:**
+- Validates build process
+- Checks HTML generation
+- Verifies file structure
+- Prevents broken deployments
 
 ---
 
-## 🚀 Next Steps
+## Troubleshooting
 
-### Add More Environments
+### Build Failed
 
-Create separate workflows for staging and production:
+**Error: "AWS credentials not found"**
+- Check that secrets are properly set in GitHub
+- Verify secret names: `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`
+- Ensure no extra spaces in secret values
+
+**Error: "Access Denied"**
+- Verify IAM user has S3 permissions
+- Check bucket name in workflow file
+- Ensure IAM policy includes `s3:PutObject` permission
+
+**Error: "NoSuchBucket"**
+- Confirm bucket exists: `autobuild-time-display-static`
+- Check region in workflow (us-east-1)
+- Verify bucket name spelling
+
+### Build Succeeds but Site Not Updated
+
+1. Check browser cache (hard refresh: Ctrl+Shift+R or Cmd+Shift+R)
+2. Verify file was uploaded:
+   ```bash
+   aws s3 ls s3://autobuild-time-display-static/
+   ```
+3. Check S3 object metadata
+4. Clear cache-control if needed
+
+### Viewing Workflow Logs
+
+1. Go to Actions tab
+2. Click on failed workflow
+3. Click on the failed job
+4. Expand steps to see detailed error messages
+
+---
+
+## Customizing the Workflow
+
+### Change Deployment Branch
+
+Edit `.github/workflows/deploy.yml`:
+
+```yaml
+on:
+  push:
+    branches:
+      - main        # Change to your branch
+      - production  # Add more branches
+```
+
+### Add Notifications
+
+Add Slack notification on deployment:
+
+```yaml
+- name: Notify Slack
+  if: success()
+  uses: slackapi/slack-github-action@v1
+  with:
+    webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
+    payload: |
+      {
+        "text": "Autobuild deployed successfully!"
+      }
+```
+
+### Deploy to Multiple Environments
+
+Create separate workflows for staging/production:
 
 ```yaml
 # .github/workflows/deploy-staging.yml
 on:
   push:
-    branches: [ develop ]
-# Deploy to: autobuild-staging bucket
+    branches:
+      - develop
+
+# Deploy to staging bucket
+aws s3 cp index.html s3://autobuild-staging/
 ```
+
+### Add CloudFront Cache Invalidation
+
+If you add CloudFront later:
 
 ```yaml
-# .github/workflows/deploy-production.yml
-on:
-  push:
-    branches: [ main ]
-# Deploy to: autobuild-time-display-static bucket
+- name: Invalidate CloudFront
+  run: |
+    aws cloudfront create-invalidation \
+      --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} \
+      --paths "/*"
 ```
 
-### Add Tests
+---
 
-Add a testing job before deployment:
+## Security Best Practices
+
+### 1. Use Least Privilege IAM Permissions
+
+✅ **Good:** Custom policy for specific bucket
+❌ **Bad:** `AdministratorAccess` or `AmazonS3FullAccess` for all buckets
+
+### 2. Rotate Access Keys Regularly
+
+Set a reminder to rotate keys every 90 days:
+
+```bash
+# Delete old access key
+aws iam delete-access-key --access-key-id OLD_KEY_ID --user-name github-actions-autobuild
+
+# Create new access key
+aws iam create-access-key --user-name github-actions-autobuild
+
+# Update GitHub secrets
+```
+
+### 3. Use GitHub Environments (Pro/Enterprise)
+
+For additional protection:
 
 ```yaml
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: python3 -m py_compile build.py
-      
   deploy:
-    needs: test  # Only deploy if tests pass
+    environment:
+      name: production
+      url: http://autobuild-time-display-static.s3-website-us-east-1.amazonaws.com
     runs-on: ubuntu-latest
-    # ... deployment steps
 ```
 
-### Notifications
+### 4. Enable Branch Protection
 
-Get notified when deployments complete:
+1. Go to Settings → Branches
+2. Add rule for `main`
+3. Require pull request reviews
+4. Require status checks to pass
+
+---
+
+## Monitoring and Costs
+
+### GitHub Actions Usage
+
+- Public repos: **Unlimited free minutes** ✨
+- Private repos: 2,000 minutes/month (free tier)
+- Each deployment: ~1 minute
+- **Your usage: FREE** (public repo)
+
+### AWS Costs
+
+- S3 PUT requests: $0.005 per 1,000 requests
+- 30 deployments/month = $0.00015
+- **Basically free!**
+
+### Total CI/CD Cost
+
+**$0.00/month** for public repo with moderate deployments! 🎉
+
+---
+
+## Advanced Features
+
+### 1. Automated Testing
+
+Add HTML validation:
 
 ```yaml
-- name: Notify on success
-  if: success()
+- name: Validate HTML
   run: |
-    # Send Slack notification, email, etc.
+    npm install -g html-validator-cli
+    html-validator index.html
+```
+
+### 2. Lighthouse Performance Testing
+
+```yaml
+- name: Run Lighthouse
+  uses: treosh/lighthouse-ci-action@v9
+  with:
+    urls: |
+      http://autobuild-time-display-static.s3-website-us-east-1.amazonaws.com
+```
+
+### 3. Scheduled Deployments
+
+Rebuild daily at midnight:
+
+```yaml
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Daily at midnight UTC
+```
+
+### 4. Deployment Rollback
+
+Keep previous versions:
+
+```bash
+# Enable versioning
+aws s3api put-bucket-versioning \
+  --bucket autobuild-time-display-static \
+  --versioning-configuration Status=Enabled
+
+# Rollback to previous version
+aws s3api list-object-versions \
+  --bucket autobuild-time-display-static \
+  --prefix index.html
 ```
 
 ---
 
-## 📚 Resources
+## Success Checklist
 
-- [GitHub Actions Documentation](https://docs.github.com/en/actions)
-- [AWS Credentials Action](https://github.com/aws-actions/configure-aws-credentials)
-- [GitHub CLI](https://cli.github.com/)
-
----
-
-## ✅ Checklist
-
-- [ ] Created IAM user or identified existing credentials
-- [ ] Added `AWS_ACCESS_KEY_ID` to GitHub secrets
-- [ ] Added `AWS_SECRET_ACCESS_KEY` to GitHub secrets
-- [ ] Tested workflow with a commit or manual trigger
-- [ ] Verified deployment at website URL
-- [ ] Set up proper IAM permissions (minimal access)
+- [ ] AWS IAM user created with S3 permissions
+- [ ] AWS credentials added as GitHub secrets
+- [ ] Pushed a commit to test deployment
+- [ ] Workflow ran successfully (green checkmark)
+- [ ] Website updated with changes
+- [ ] Verified deployment URL works
 
 ---
 
-**Your CI/CD is now set up!** Every push to `main` will automatically deploy your changes. 🎉
+## Next Steps
+
+1. **Make your first automated deployment!**
+   ```bash
+   # Edit build.py to change colors or text
+   git add build.py
+   git commit -m "Update website colors"
+   git push origin main
+   # Watch it deploy automatically!
+   ```
+
+2. **Set up branch protection** (optional)
+   - Require PR reviews before merging
+   - Require tests to pass
+
+3. **Add more features**
+   - Timezone selector
+   - Dark/light mode toggle
+   - Weather widget
+
+4. **Enhance CI/CD**
+   - Add CloudFront invalidation
+   - Implement blue-green deployments
+   - Add Slack notifications
+
+---
+
+## Resources
+
+- **GitHub Actions Docs:** https://docs.github.com/en/actions
+- **AWS S3 CLI Reference:** https://docs.aws.amazon.com/cli/latest/reference/s3/
+- **IAM Best Practices:** https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html
+- **Workflow Syntax:** https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions
+
+---
+
+## Support
+
+If you encounter issues:
+1. Check workflow logs in GitHub Actions tab
+2. Verify AWS credentials and permissions
+3. Review this guide's troubleshooting section
+4. Check AWS CloudTrail for API errors
+
+Happy automated deploying! 🚀
